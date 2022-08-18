@@ -6,6 +6,7 @@ import webbrowser
 from datetime import datetime
 from pytz import timezone
 from pytz import utc
+import threading
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -19,7 +20,7 @@ class YoutubeLivechat:
  
     MESSAGES = None
     CALLBACKS = None
-    
+
     def __init__(self, youtubeVideoId, ytBcastService=None, wsPort=8778, callbacks=[]):
         self.MESSAGES = {}
         self.CALLBACKS = callbacks
@@ -75,6 +76,15 @@ class YoutubeLivechat:
                 return
             case _:
                 print("Unrecognized command from client: %s" % action)
+
+    def nonblockingStart(self):
+        self.THREAD_DONE = False
+        thread = threading.Thread(target=self.start)
+        thread.start()
+        return thread
+
+    def done(self):
+        self.THREAD_DONE = True
 
     def start(self):
         chatGetRequest = self.YT_BCAST_SERVICE.liveChatMessages().list(
@@ -134,6 +144,10 @@ class YoutubeLivechat:
                     print('Failed to get %s messages... clearing chrome queue...' % len(self.MESSAGES))
                     self.MESSAGES = {}
                     retryCount = self.MAX_RETRIES
+        
+            if self.THREAD_DONE:
+                return
+
 
     def notify(self, message):
         for callback in self.CALLBACKS:
