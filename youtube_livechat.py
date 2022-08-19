@@ -114,24 +114,22 @@ class YoutubeLivechat:
                 chatGetResponse = chatGetRequest.execute()
                 delayTillPoll = chatGetResponse['pollingIntervalMillis']
 
-                likelyMatch = False
                 for message in chatGetResponse['items']:
                     author = message['authorDetails']['displayName']
                     publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
                     messageText = message['snippet']['textMessageDetails']['messageText']
 
+                    match = None
                     for id, outstandingMessage in list(self.MESSAGES.items()):
-                        match = True
-
-                        if outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
-                            for textItem in [item['text'] for item in outstandingMessage['content'] if item['type'] == 'text']:
-                                if textItem not in messageText:
-                                    match = False
+                        outstandingMessageText = ''.join([item['text'] if item['type'] == 'text' else item['alt'] for item in outstandingMessage['content']])
+                        if outstandingMessageText == messageText and outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
+                                match = id
+                                break
                     
-                        if match:
-                            del self.MESSAGES[id]
-                            message['htmlText'] = outstandingMessage['content']
-                            self.notify(message)
+                    if match:
+                        del self.MESSAGES[id]
+                        message['htmlText'] = outstandingMessage['content']
+                        self.notify(message)
 
                 if len(self.MESSAGES) > 0:
                     retryCount -= 1
@@ -146,7 +144,6 @@ class YoutubeLivechat:
         
             if self.THREAD_DONE:
                 return
-
 
     def notify(self, message):
         for callback in self.CALLBACKS:
