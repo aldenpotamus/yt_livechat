@@ -14,12 +14,11 @@ import googleapiclient.errors
 from websocket_server import WebsocketServer
 
 class YoutubeLivechat:
-    SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
-
     MAX_RETRIES = 3
  
     MESSAGES = None
     CALLBACKS = None
+    THREAD_DONE = False
 
     def __init__(self, youtubeVideoId, ytBcastService=None, wsPort=8778, callbacks=[]):
         self.MESSAGES = {}
@@ -58,8 +57,8 @@ class YoutubeLivechat:
     def clientMessage(self, client, server, message):
         msgObject = json.loads(message)
         messageTime = datetime.strptime(msgObject['time'], '%I:%M %p').replace(year=datetime.now().year,
-                                                                            month=datetime.now().month,
-                                                                            day=datetime.now().day)
+                                                                               month=datetime.now().month,
+                                                                               day=datetime.now().day)
         localtime = timezone('US/Pacific')
         localtime = localtime.localize(messageTime, is_dst=None)
         msgObject['timestamp'] = localtime.astimezone(utc)
