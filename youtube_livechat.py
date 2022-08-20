@@ -1,16 +1,11 @@
 import json
-import os
-import sys
+import re
+import threading
 import time
 import webbrowser
 from datetime import datetime
-from pytz import timezone
-from pytz import utc
-import threading
 
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
-import googleapiclient.errors
+from pytz import timezone, utc
 from websocket_server import WebsocketServer
 
 class YoutubeLivechat:
@@ -126,6 +121,7 @@ class YoutubeLivechat:
                     for id, outstandingMessage in list(self.MESSAGES.items()):
                         outstandingMessageText = ''.join([item['text'] if item['type'] == 'text' else item['alt'] for item in outstandingMessage['content']])
                         outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
+                        outstandingMessageText = re.sub(' +', ' ', outstandingMessageText)
                         print("%s ?= %s" % (messageText, outstandingMessageText))
                         if outstandingMessageText == messageText and outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
                                 match = id
