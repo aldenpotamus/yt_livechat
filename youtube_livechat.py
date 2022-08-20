@@ -113,6 +113,7 @@ class YoutubeLivechat:
 
                 chatGetResponse = chatGetRequest.execute()
                 delayTillPoll = chatGetResponse['pollingIntervalMillis']
+                # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
                 for message in chatGetResponse['items']:
                     author = message['authorDetails']['displayName']
@@ -122,6 +123,7 @@ class YoutubeLivechat:
                     match = None
                     for id, outstandingMessage in list(self.MESSAGES.items()):
                         outstandingMessageText = ''.join([item['text'] if item['type'] == 'text' else item['alt'] for item in outstandingMessage['content']])
+                        # print("%s ?= %s" % (messageText, outstandingMessageText))
                         if outstandingMessageText == messageText and outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
                                 match = id
                                 break
@@ -133,6 +135,7 @@ class YoutubeLivechat:
 
                 if len(self.MESSAGES) > 0:
                     retryCount -= 1
+                else:
                     chatGetRequest = self.YT_BCAST_SERVICE.playlistItems().list_next(chatGetRequest, chatGetResponse)
             else:
                 timeSincePoll = timeSincePoll + (0.25 * 1000)
