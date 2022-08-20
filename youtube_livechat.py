@@ -121,7 +121,7 @@ class YoutubeLivechat:
                     for id, outstandingMessage in list(self.MESSAGES.items()):
                         outstandingMessageText = ''.join([item['text'] if item['type'] == 'text' else item['alt'] for item in outstandingMessage['content']])
                         outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
-                        outstandingMessageText = re.sub(' +', ' ', outstandingMessageText)
+                        outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
                         print("%s ?= %s" % (messageText, outstandingMessageText))
                         if outstandingMessageText == messageText and outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
                                 match = id
