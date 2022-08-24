@@ -26,7 +26,7 @@ class YoutubeLivechat:
             id=youtubeVideoId
         )
         response = request.execute()
-        print(response)
+        # print(response)
 
         global liveChatId
         liveChatId = response['items'][0]['snippet']['liveChatId']
@@ -67,7 +67,7 @@ class YoutubeLivechat:
 
         match action:
             case 'YT_MSG_EVENT':
-                print("ID: %s" % msgObject)
+                # print("ID: %s" % msgObject)
                 self.MESSAGES[msgObject['id']] = msgObject
                 return
             case _:
@@ -103,26 +103,27 @@ class YoutubeLivechat:
             if len(self.MESSAGES) == 0:
                 retryCount = self.MAX_RETRIES
 
-            print("Messages Outstanding: %s, Retrys: %s, Time Since Poll: %s, Delay Till Poll: %s" % (len(self.MESSAGES), retryCount, timeSincePoll, delayTillPoll))
+            # print("Messages Outstanding: %s, Retrys: %s, Time Since Poll: %s, Delay Till Poll: %s" % (len(self.MESSAGES), retryCount, timeSincePoll, delayTillPoll))
             if (len(self.MESSAGES) > 0) and (retryCount > 0) and (timeSincePoll > delayTillPoll):
                 time.sleep(2.00)
                 timeSincePoll = 0
 
                 chatGetResponse = chatGetRequest.execute()
                 delayTillPoll = chatGetResponse['pollingIntervalMillis']
-                print("Messages in Response: %s" % len(chatGetResponse['items']))
+                # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
                 for message in chatGetResponse['items']:
                     author = message['authorDetails']['displayName']
                     publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
                     messageText = message['snippet']['textMessageDetails']['messageText']
+                    messageText = messageText.encode('ascii', errors='ignore').decode().strip()
 
                     match = None
                     for id, outstandingMessage in list(self.MESSAGES.items()):
-                        outstandingMessageText = ''.join([item['text'] if item['type'] == 'text' else item['alt'] for item in outstandingMessage['content']])
+                        outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
                         outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
                         outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
-                        print("%s ?= %s" % (messageText, outstandingMessageText))
+                        # print("%s ?= %s" % (messageText, outstandingMessageText))
                         if outstandingMessageText == messageText and outstandingMessage['author'] == author and abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120:
                                 match = id
                                 break
