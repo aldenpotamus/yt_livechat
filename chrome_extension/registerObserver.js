@@ -21,8 +21,11 @@ function nodeInsertedCallback(event) {
         msgParts = [];
         Array.from(event.relatedNode.childNodes).forEach(child => {
             msgParts.push(typeof child.data !== 'undefined' ? 
-                { 'type': 'text', 'text': child.data} : 
-                { 'type': 'img', 'alt' : child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':', 'src': child.src } );
+                          { 'type': 'text', 'text': child.data} : 
+                          { 'type': 'img', 
+                            'alt': child.alt ? (child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':') : '',
+                            'text' : child.getAttribute('shared-tooltip-text') ? child.getAttribute('shared-tooltip-text') : '',
+                            'src': child.src } );
         });
 
         notification = {
