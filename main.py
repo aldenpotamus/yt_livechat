@@ -20,7 +20,7 @@ if __name__ == '__main__':
     CONFIG.read('config.ini')
 
     bcastService = AuthManager.get_authenticated_service("broadcast",
-                                                         clientSecretFile='client_secret.json',
+                                                         clientSecretFile=CONFIG['AUTH_MANAGER']['clientSecretFile'],
                                                          scopes=["https://www.googleapis.com/auth/youtube.force-ssl"],
                                                          config=CONFIG)
 
