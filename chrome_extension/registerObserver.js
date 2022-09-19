@@ -13,6 +13,8 @@ function nodeInsertedCallback(event) {
         
         var parent = event.relatedNode.closest('yt-live-chat-text-message-renderer');
 
+        if(parent == null) { return; }
+
         var messageId = parent.id;
         var authorName = parent.querySelectorAll('#author-name')[0].textContent;
         // var authorAvatarUrl = parent.querySelectorAll('yt-img-shadow #img')[0];
