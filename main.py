@@ -19,10 +19,8 @@ if __name__ == '__main__':
     CONFIG = configparser.ConfigParser()
     CONFIG.read('config.ini')
 
-    bcastService = AuthManager.get_authenticated_service("broadcast",
-                                                         clientSecretFile=CONFIG['AUTH_MANAGER']['clientSecretFile'],
-                                                         scopes=["https://www.googleapis.com/auth/youtube.force-ssl"],
-                                                         config=CONFIG)
+    bcastService = AuthManager.get_authenticated_service(CONFIG['TEST'], 
+                                                         authConfig=CONFIG['AUTH_MANAGER'])
 
     ytMonitor = YoutubeLivechat(videoId,
                                 ytBcastService=bcastService,
