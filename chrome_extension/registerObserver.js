@@ -22,19 +22,22 @@ function nodeInsertedCallback(event) {
 
         msgParts = [];
         Array.from(event.relatedNode.childNodes).forEach(child => {
-            msgParts.push(typeof child.data !== 'undefined' ? 
-                          { 'type': 'text', 'text': child.data} : 
-                          { 'type': 'img', 
-                            'alt': child.alt ? (child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':') : '',
-                            'text' : child.getAttribute('shared-tooltip-text') ? child.getAttribute('shared-tooltip-text') : '',
-                            'src': child.src } );
+            if(child instanceof HTMLAnchorElement) {
+                msgParts.push({ 'type': 'text', 'text': child.innerHTML});
+            } else if (child instanceof Text) {
+                msgParts.push({ 'type': 'text', 'text': child.data});
+            } else if (child instanceof Image) {
+                msgParts.push({ 'type': 'img', 
+                                'alt': child.alt ? (child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':') : '',
+                                'text' : child.getAttribute('shared-tooltip-text') ? child.getAttribute('shared-tooltip-text') : '',
+                                'src': child.src });
+            }
         });
 
         notification = {
             'action': 'YT_MSG_EVENT',
             'id': messageId,
             'author': authorName,
-            // 'authorAvatarUrl': authorAvatarUrl,
             'time': timestamp,
             'content': msgParts
         };
