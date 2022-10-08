@@ -22,7 +22,7 @@ function nodeInsertedCallback(event) {
 
         msgParts = [];
         Array.from(event.relatedNode.childNodes).forEach(child => {
-            if(child instanceof HTMLAnchorElement) {
+            if(child instanceof HTMLAnchorElement || child instanceof HTMLSpanElement) {
                 msgParts.push({ 'type': 'text', 'text': child.innerHTML});
             } else if (child instanceof Text) {
                 msgParts.push({ 'type': 'text', 'text': child.data});
