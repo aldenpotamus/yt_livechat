@@ -17,6 +17,8 @@ class YoutubeLivechat:
     CALLBACKS = None
     THREAD_DONE = False
 
+    CURRENT_CLIENT = None
+
     def __init__(self, youtubeVideoId, ytBcastService=None, wsPort=8778, callbacks=[]):
         self.MESSAGES = {}
         self.CALLBACKS = callbacks
@@ -47,11 +49,16 @@ class YoutubeLivechat:
 
     def clientJoin(self, client, server):
         print("New client connected and was given id %d" % client['id'])
+        self.CURRENT_CLIENT = client['id']
 
     def clientDisconnect(self, client, server):
         print("Client(%d) disconnected" % client['id'])
 
     def clientMessage(self, client, server, message):
+        if client['id'] != self.CURRENT_CLIENT:
+            print(f'Ignoring second client with id {client["id"]}...')
+            return
+
         messageClean = message.encode('ascii', errors='ignore').decode()
         msgObject = json.loads(messageClean)
 
