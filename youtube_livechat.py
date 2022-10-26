@@ -8,6 +8,8 @@ from datetime import datetime
 from pytz import timezone, utc
 from websocket_server import WebsocketServer
 
+stripNonAN = re.compile(r'[^A-Za-z0-9 ]+')
+
 class YoutubeLivechat:
     MAX_RETRIES = 3
  
@@ -123,10 +125,11 @@ class YoutubeLivechat:
                         outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
                         outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
                         outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
-                        outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', outstandingMessageText)
-                        print("%s ?= %s" % (messageText, outstandingMessageText))
+                        outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
+                        
+                        print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
                         if ((outstandingMessageText == messageText or
-                             re.match(outstandingMessageTextRe, messageText)) and
+                             re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
                             outstandingMessage['author'] == author and 
                             abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120):
                                 match = id
