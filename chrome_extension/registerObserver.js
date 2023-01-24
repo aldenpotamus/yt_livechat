@@ -8,8 +8,8 @@ function addslashes( str ) {
 }
 
 function nodeInsertedCallback(event) {
-    if(event.relatedNode.id == 'message' && event.path[4].childElementCount > messagesTotal) {      
-        messagesTotal = event.path[4].childElementCount;
+    if(event.relatedNode.id == 'message' && event.composedPath()[4].childElementCount > messagesTotal) {
+        messagesTotal = event.composedPath()[4].childElementCount;
         console.log(event);
         
         var parent = event.relatedNode.closest('yt-live-chat-text-message-renderer');
