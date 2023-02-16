@@ -62,9 +62,9 @@ class YoutubeLivechat:
         messageClean = message.encode('ascii', errors='ignore').decode()
         msgObject = json.loads(messageClean)
 
-        messageTime = datetime.strptime(msgObject['time'], '%I:%M %p').replace(year=datetime.now().year,
-                                                                               month=datetime.now().month,
-                                                                               day=datetime.now().day)
+        messageTime = self.try_parsing_date(msgObject['time']).replace(year=datetime.now().year,
+                                                                       month=datetime.now().month,
+                                                                       day=datetime.now().day)
         localtime = timezone('US/Pacific')
         localtime = localtime.localize(messageTime, is_dst=None)
         msgObject['timestamp'] = localtime.astimezone(utc)
@@ -81,6 +81,14 @@ class YoutubeLivechat:
                 return
             case _:
                 print("Unrecognized command from client: %s" % action)
+
+    def try_parsing_date(self, text):
+        for fmt in ('%I:%M %p', '%I:%M%p'):
+            try:
+                return datetime.strptime(text, fmt)
+            except ValueError:
+                pass
+        raise ValueError('no valid date format found')
 
     def nonblockingStart(self):
         self.THREAD_DONE = False
