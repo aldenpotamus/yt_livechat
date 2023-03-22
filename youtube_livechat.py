@@ -130,30 +130,34 @@ class YoutubeLivechat:
                 # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
                 for message in chatGetResponse['items']:
-                    author = message['authorDetails']['displayName']
-                    publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
-                    messageText = message['snippet']['textMessageDetails']['messageText']
-                    messageText = messageText.encode('ascii', errors='ignore').decode().strip()
+                    if 'textMessageDetails' not in message:
+                        author = message['authorDetails']['displayName']
+                        publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
+                        messageText = message['snippet']['textMessageDetails']['messageText']
+                        messageText = messageText.encode('ascii', errors='ignore').decode().strip()
 
-                    match = None
-                    for id, outstandingMessage in list(self.MESSAGES.items()):
-                        outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
-                        outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
-                        outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
-                        outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
+                        match = None
+                        for id, outstandingMessage in list(self.MESSAGES.items()):
+                            outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
+                            outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
+                            outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
+                            outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
+                            
+                            print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
+                            if ((outstandingMessageText == messageText or
+                                re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
+                                outstandingMessage['author'] == author and 
+                                abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120):
+                                    match = id
+                                    break
                         
-                        print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
-                        if ((outstandingMessageText == messageText or
-                             re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
-                            outstandingMessage['author'] == author and 
-                            abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120):
-                                match = id
-                                break
-                    
-                    if match:
-                        del self.MESSAGES[id]
-                        message['htmlText'] = outstandingMessage['content']
-                        self.notify(message)
+                        if match:
+                            del self.MESSAGES[id]
+                            message['htmlText'] = outstandingMessage['content']
+                            self.notify(message)
+                    else:
+                        print('Unknown Message Type:')
+                        print(message)
 
                 if len(self.MESSAGES) > 0:
                     retryCount -= 1
