@@ -130,7 +130,7 @@ class YoutubeLivechat:
                 # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
                 for message in chatGetResponse['items']:
-                    if 'textMessageDetails' not in message:
+                    if 'snippet' in message and 'textMessageDetails' in message['snippet']:
                         author = message['authorDetails']['displayName']
                         publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
                         messageText = message['snippet']['textMessageDetails']['messageText']
