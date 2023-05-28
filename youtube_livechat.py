@@ -76,7 +76,7 @@ class YoutubeLivechat:
 
         match action:
             case 'YT_MSG_EVENT':
-                # print("ID: %s" % msgObject)
+                print("Adding Message From Chrome: %s" % msgObject)
                 self.MESSAGES[msgObject['id']] = msgObject
                 return
             case _:
@@ -130,31 +130,31 @@ class YoutubeLivechat:
                 # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
                 for message in chatGetResponse['items']:
+                    print("Comparing Message From API: %s" % message)
                     if 'snippet' in message and 'textMessageDetails' in message['snippet']:
                         author = message['authorDetails']['displayName']
                         publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
                         messageText = message['snippet']['textMessageDetails']['messageText']
                         messageText = messageText.encode('ascii', errors='ignore').decode().strip()
 
-                        match = None
-                        for id, outstandingMessage in list(self.MESSAGES.items()):
-                            outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
-                            outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
-                            outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
-                            outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
-                            
-                            print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
-                            if ((outstandingMessageText == messageText or
-                                re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
-                                outstandingMessage['author'] == author and 
-                                abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120):
-                                    match = id
-                                    break
-                        
+                        match, outstandingMessage = self.check_for_match(messageText, author, publishedTime, list(self.MESSAGES.items()))
+
                         if match:
-                            del self.MESSAGES[id]
+                            del self.MESSAGES[match]
                             message['htmlText'] = outstandingMessage['content']
                             self.notify(message)
+                    elif 'snippet' in message and 'superChatDetails' in message['snippet']:
+                        author = message['authorDetails']['displayName']
+                        publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
+                        messageText = message['snippet']['superChatDetails']['userComment']
+                        messageText = messageText.encode('ascii', errors='ignore').decode().strip()
+
+                        match, outstandingMessage = self.check_for_match(messageText, author, publishedTime, list(self.MESSAGES.items()))
+
+                        if match:
+                            del self.MESSAGES[match]
+                            message['htmlText'] = outstandingMessage['content']
+                            self.notify(message)                       
                     else:
                         print('Unknown Message Type:')
                         print(message)
@@ -173,6 +173,22 @@ class YoutubeLivechat:
         
             if self.THREAD_DONE:
                 return
+
+    def check_for_match(self, messageText, author, publishedTime, outstandingMessages):
+        for id, outstandingMessage in outstandingMessages:
+            outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
+            outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
+            outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
+            outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
+            
+            print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
+            if ((outstandingMessageText == messageText or
+                re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
+                outstandingMessage['author'] == author and 
+                abs((publishedTime - outstandingMessage['timestamp']).total_seconds()) < 120):
+                    return (id, outstandingMessage)
+        return (None, None)
+
 
     def notify(self, message):
         for callback in self.CALLBACKS:
