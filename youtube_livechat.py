@@ -59,8 +59,9 @@ class YoutubeLivechat:
             print(f'Ignoring second client with id {client["id"]}...')
             return
 
-        messageClean = message.encode('ascii', errors='ignore').decode()
-        msgObject = json.loads(messageClean)
+        # this may have been solving a problem or causing one... we'll see
+        # messageClean = message.encode('ascii', errors='ignore').decode()
+        msgObject = json.loads(message)
 
         messageTime = self.try_parsing_date(msgObject['time']).replace(year=datetime.now().year,
                                                                        month=datetime.now().month,
@@ -179,9 +180,12 @@ class YoutubeLivechat:
             outstandingMessageText = ''.join([str(item['text']) if item['type'] == 'text' else str(item['alt']) for item in outstandingMessage['content']])
             outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
             outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
-            outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]+', stripNonAN.sub('', outstandingMessageText))
+            outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]*', stripNonAN.sub('', outstandingMessageText))
             
             print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
+            print(f"\t{outstandingMessage['author']} == {author}")
+            print(f"\t{abs((publishedTime - outstandingMessage['timestamp']).total_seconds())}")
+
             if ((outstandingMessageText == messageText or
                 re.match(outstandingMessageTextRe, stripNonAN.sub('', messageText))) and
                 outstandingMessage['author'] == author and 
