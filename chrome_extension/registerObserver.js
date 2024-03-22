@@ -7,54 +7,98 @@ function addslashes( str ) {
     return (str + '').replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
 }
 
-function nodeInsertedCallback(event) {
-    if(event.relatedNode.id == 'message' && event.composedPath()[4].childElementCount > messagesTotal) {
-        messagesTotal = event.composedPath()[4].childElementCount;
-        console.log(event);
-        
-        var parent = event.relatedNode.closest('yt-live-chat-text-message-renderer');
+setTimeout(function() {
+    document.querySelectorAll("#label")[1].click();
+    setTimeout(function() {
+        document.querySelectorAll(".yt-simple-endpoint")[1].click();
+        setTimeout(function() {
+            // Select the node that will be observed for mutations
+            const targetNode = document.querySelectorAll("div#items.yt-live-chat-item-list-renderer")[0]
 
-        if(parent == null) { return; }
+            registerObserver(targetNode);
+        }, 1000);
+    }, 200);
+}, 200);
 
-        var messageId = parent.id;
-        var authorName = parent.querySelectorAll('#author-name')[0].textContent;
-        // var authorAvatarUrl = parent.querySelectorAll('yt-img-shadow #img')[0];
-        var timestamp = parent.querySelectorAll('#timestamp')[0].innerHTML;
+// Options for the observer (which mutations to observe)
+const config = { attributes: true, childList: true, subtree: true };
 
-        msgParts = [];
-        Array.from(event.relatedNode.childNodes).forEach(child => {
-            if(child instanceof HTMLAnchorElement || child instanceof HTMLSpanElement) {
-                msgParts.push({ 'type': 'text', 'text': child.innerHTML.replaceAll(innerCleaner, '')});
-            } else if (child instanceof Text) {
-                msgParts.push({ 'type': 'text', 'text': child.data});
-            } else if (child instanceof Image) {
-                msgParts.push({ 'type': 'img', 
-                                'alt': child.alt ? (child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':') : '',
-                                'text' : child.getAttribute('shared-tooltip-text') ? child.getAttribute('shared-tooltip-text') : '',
-                                'src': child.src });
-            }
-        });
-
-        notification = {
-            'action': 'YT_MSG_EVENT',
-            'id': messageId,
-            'author': authorName,
-            'time': timestamp,
-            'content': msgParts
-        };
-
-        console.log(notification);
-
-        if (ws == null || ws.readyState != 1) {
+// Callback function to execute when mutations are observed
+function sendUpdateToWSS(updateMsg) {
+    if (ws == null || ws.readyState != 1) {
         ws = new WebSocket("ws://localhost:8778/");
-            // Delayed send on reconnect, wait for ready
-            ws.onopen = function() {
-                ws.send(JSON.stringify(notification));
+        // Delayed send on reconnect, wait for ready
+        ws.onopen = function() {
+            ws.send(updateMsg);
+        }
+    } else {
+        ws.send(updateMsg);
+    }
+
+    messagesTotal += 1;
+    console.log("Messages Total: "+messagesTotal);
+    /* if(messagesTotal != 0 && messagesTotal % 20 == 0) {
+        setTimeout(function() {
+            document.querySelectorAll('#picker-buttons #button')[0].click();
+            setTimeout(function() {
+                document.querySelectorAll('#emoji')[3].childNodes[0].click()
+                setTimeout(function() {
+                    document.querySelectorAll('#picker-buttons #button')[0].click();
+                }, 1000);
+            }, 1000);
+        }, 1000);
+    } */
+}
+
+const callback = (mutationList, observer) => {
+    for(const mutation of mutationList) {
+        if(mutation.type == 'childList' && mutation.target.id == 'items' && mutation.addedNodes.length > 0) {
+            for(const addedNode of mutation.addedNodes) {
+                var messageId = addedNode.id;
+                var authorName = addedNode.querySelectorAll('#author-name')[0].textContent;
+                var timestamp = addedNode.querySelectorAll('#timestamp')[0].innerHTML;
+
+                var msgParts = [];
+                console.log(addedNode.querySelectorAll('#message'))
+                for(const child of addedNode.querySelectorAll('#message')[0].childNodes) {
+                    console.log("BOOP");
+                    if(child instanceof HTMLAnchorElement || child instanceof HTMLSpanElement) {
+                        msgParts.push({ 'type': 'text', 'text': child.innerHTML.replaceAll(innerCleaner, '')});
+                    } else if (child instanceof Text) {
+                        msgParts.push({ 'type': 'text', 'text': child.data});
+                    } else if (child instanceof Image) {
+                        msgParts.push({ 'type': 'img', 
+                                        'alt': child.alt ? (child.alt.match(emojiCheck) ? child.alt : ':'+child.alt+':') : '',
+                                        'text' : child.getAttribute('shared-tooltip-text') ? child.getAttribute('shared-tooltip-text') : '',
+                                        'src': child.src });
+                    } else if (child.tagName == "DIV" && child.childNodes[0] instanceof Image) {
+                        msgParts.push({ 'type': 'img', 
+                                        'alt': child.childNodes[0].alt,
+                                        'text' : child.childNodes[0].alt,
+                                        'src': child.childNodes[0].src });                        
+                    }
+                }
+
+                notification = {
+                    'action': 'YT_MSG_EVENT',
+                    'id': messageId,
+                    'author': authorName,
+                    'time': timestamp,
+                    'content': msgParts
+                };
+
+                console.log(notification);
+
+                sendUpdateToWSS(JSON.stringify(notification));
             }
-        } else {
-            ws.send(JSON.stringify(notification));
         }
     }
 };
 
-document.addEventListener('DOMNodeInserted', nodeInsertedCallback);
+function registerObserver(targetNode) {
+    // Create an observer instance linked to the callback function
+    const observer = new MutationObserver(callback);
+
+    // Start observing the target node for configured mutations
+    observer.observe(targetNode, config);
+}
