@@ -181,8 +181,8 @@ class YoutubeLivechat:
             outstandingMessageText = ''.join([s for s in outstandingMessageText if s.isprintable()])
             outstandingMessageText = re.sub(' +', ' ', outstandingMessageText).strip()
             outstandingMessageTextRe = re.sub(r'[ \s\t]+', '[ ]*', stripNonAN.sub('', outstandingMessageText))
-            
-            print(f'"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
+
+            print(f'\t"{messageText}" ?= "{outstandingMessageText}" OR "{outstandingMessageTextRe}" ?= "{stripNonAN.sub("", messageText)}"')
             print(f"\t{outstandingMessage['author']} == {author}")
             print(f"\t{abs((publishedTime - outstandingMessage['timestamp']).total_seconds())}")
 
