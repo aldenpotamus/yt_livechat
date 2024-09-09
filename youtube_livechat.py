@@ -111,18 +111,18 @@ class YoutubeLivechat:
 
     def nonblockingStart(self):
         self.THREAD_DONE = False
-        thread = threading.Thread(target=self.start, args=[self.LIVE_CHAT_IDS])
+        thread = threading.Thread(target=self.start)
         thread.start()
         return thread
 
     def done(self):
         self.THREAD_DONE = True
 
-    def start(self, liveChatIds):
+    def start(self):
         liveChatExchanges = [{'liveChatId': liveChatId,
                               'request': self.YT_BCAST_SERVICE.liveChatMessages().list(liveChatId=liveChatId,part="snippet,authorDetails"),
                               'response': None}
-                             for liveChatId in liveChatIds]
+                             for liveChatId in self.LIVE_CHAT_IDS]
 
         chatGetResponse, delayTillPoll = self.get_messages_from_yt(liveChatExchanges)
 

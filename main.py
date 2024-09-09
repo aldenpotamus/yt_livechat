@@ -27,12 +27,12 @@ if __name__ == '__main__':
                                 ytBcastService=bcastService,
                                 callbacks=[notifyFunction])
     
-    #ytMonitor.start()
+    ytMonitor.start()
     
-    ytMonitor.nonblockingStart()
+    # ytMonitor.nonblockingStart()
 
-    try:
-        while True:
-            time.sleep(3)
-    except KeyboardInterrupt:
-        ytMonitor.done()
+    # try:
+    #     while True:
+    #         time.sleep(3)
+    # except KeyboardInterrupt:
+    #     ytMonitor.done()
