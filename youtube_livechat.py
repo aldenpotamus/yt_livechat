@@ -4,9 +4,13 @@ import threading
 import time
 import webbrowser
 from datetime import datetime
+import re
 
 from pytz import timezone, utc
 from websocket_server import WebsocketServer
+
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
 stripNonAN = re.compile(r'[^A-Za-z0-9 ]+')
 
@@ -17,25 +21,28 @@ class YoutubeLivechat:
     CALLBACKS = None
     THREAD_DONE = False
 
-    CURRENT_CLIENT = None
+    LIVE_CHAT_IDS = []
+    CURRENT_CLIENTS = {}
 
-    def __init__(self, youtubeVideoId, ytBcastService=None, wsPort=8778, callbacks=[]):
+    def __init__(self, youtubeVideoIds, ytBcastService=None, wsPort=8778, callbacks=[]):
         self.MESSAGES = {}
         self.CALLBACKS = callbacks
 
         self.YT_BCAST_SERVICE = ytBcastService
  
-        request = ytBcastService.liveBroadcasts().list(
-            part="snippet,contentDetails,status",
-            id=youtubeVideoId
-        )
-        response = request.execute()
-        # print(response)
+        for youtubeVideoId in youtubeVideoIds:
+            self.CURRENT_CLIENTS[youtubeVideoId] = 'NULL'
 
-        global liveChatId
-        liveChatId = response['items'][0]['snippet']['liveChatId']
+            request = ytBcastService.liveBroadcasts().list(
+                part="snippet,contentDetails,status",
+                id=youtubeVideoId
+            )
+            response = request.execute()
+            # print(response)
 
-        webbrowser.open_new_tab('https://www.youtube.com/live_chat?is_popout=1&v='+youtubeVideoId)
+            self.LIVE_CHAT_IDS.append(response['items'][0]['snippet']['liveChatId'])
+
+            webbrowser.open_new_tab('https://www.youtube.com/live_chat?is_popout=1&v='+youtubeVideoId)
 
         global websocketServer
         websocketServer = WebsocketServer(port=wsPort, host='0.0.0.0')
@@ -48,20 +55,31 @@ class YoutubeLivechat:
         self.CALLBACKS.append(callback) 
 
     def clientJoin(self, client, server):
-        print("New client connected and was given id %d" % client['id'])
-        self.CURRENT_CLIENT = client['id']
+        print(f'New client connected and was given id {client["id"]}')
 
     def clientDisconnect(self, client, server):
         print("Client(%d) disconnected" % client['id'])
 
     def clientMessage(self, client, server, message):
-        if client['id'] != self.CURRENT_CLIENT:
-            print(f'Ignoring second client with id {client["id"]}...')
-            return
-
         # this may have been solving a problem or causing one... we'll see
         # messageClean = message.encode('ascii', errors='ignore').decode()
         msgObject = json.loads(message)
+
+        if msgObject["videoId"] not in self.CURRENT_CLIENTS.keys():
+            print(f'Not currently monitoring videoId [{msgObject["videoId"]}]... ignoring message.')
+            return
+        elif self.CURRENT_CLIENTS[msgObject["videoId"]] == "NULL":
+            print(f'New client identified as clientId[{client["id"]}] now linked to video [{msgObject["videoId"]}]')
+            self.CURRENT_CLIENTS[msgObject['videoId']] = client["id"]
+
+        if self.CURRENT_CLIENTS[msgObject['videoId']] == client["id"]: 
+            print(f'Message from primary client {client["id"]} for video [{msgObject["videoId"]}]')  
+        elif self.CURRENT_CLIENTS[msgObject['videoId']] < client["id"]:
+            print(f'New primary client {client["id"]} for video [{msgObject["videoId"]}]')
+            self.CURRENT_CLIENTS[msgObject['videoId']] = client["id"]
+        else:
+            print(f'Ignroing message from now defunct client [{client["id"]}] for video [{msgObject["videoId"]}]...')
+            return
 
         messageTime = self.try_parsing_date(msgObject['time']).replace(year=datetime.now().year,
                                                                        month=datetime.now().month,
@@ -93,23 +111,20 @@ class YoutubeLivechat:
 
     def nonblockingStart(self):
         self.THREAD_DONE = False
-        thread = threading.Thread(target=self.start)
+        thread = threading.Thread(target=self.start, args=[self.LIVE_CHAT_IDS])
         thread.start()
         return thread
 
     def done(self):
         self.THREAD_DONE = True
 
-    def start(self):
-        chatGetRequest = self.YT_BCAST_SERVICE.liveChatMessages().list(
-            liveChatId=liveChatId,
-            part="snippet,authorDetails"
-        )
+    def start(self, liveChatIds):
+        liveChatExchanges = [{'liveChatId': liveChatId,
+                              'request': self.YT_BCAST_SERVICE.liveChatMessages().list(liveChatId=liveChatId,part="snippet,authorDetails"),
+                              'response': None}
+                             for liveChatId in liveChatIds]
 
-        # discard all existing chat messages
-        chatGetResponse = chatGetRequest.execute()
-        delayTillPoll = chatGetResponse['pollingIntervalMillis']
-        chatGetRequest = self.YT_BCAST_SERVICE.playlistItems().list_next(chatGetRequest, chatGetResponse)
+        chatGetResponse, delayTillPoll = self.get_messages_from_yt(liveChatExchanges)
 
         delayTillPoll = 0      
         timeSincePoll = 0
@@ -126,12 +141,14 @@ class YoutubeLivechat:
                 time.sleep(2.00)
                 timeSincePoll = 0
 
-                chatGetResponse = chatGetRequest.execute()
-                delayTillPoll = chatGetResponse['pollingIntervalMillis']
+                # chatGetResponse = chatGetRequest.execute()
+                # delayTillPoll = chatGetResponse['pollingIntervalMillis']
                 # print("Messages in Response: %s" % len(chatGetResponse['items']))
 
+                chatGetResponse, delayTillPoll = self.get_messages_from_yt(liveChatExchanges)
+
                 for message in chatGetResponse['items']:
-                    print("Comparing Message From API: %s" % message)
+                    # print("Comparing Message From API: %s" % message)
                     if 'snippet' in message and 'textMessageDetails' in message['snippet']:
                         author = message['authorDetails']['displayName']
                         publishedTime = datetime.fromisoformat(message['snippet']['publishedAt'].split('.')[0]+'+00:00')
@@ -162,18 +179,38 @@ class YoutubeLivechat:
 
                 if len(self.MESSAGES) > 0:
                     retryCount -= 1
-                else:
-                    chatGetRequest = self.YT_BCAST_SERVICE.playlistItems().list_next(chatGetRequest, chatGetResponse)
             else:
                 timeSincePoll = timeSincePoll + (0.25 * 1000)
                 
                 if retryCount <= 0:
-                    print('Failed to get %s messages... clearing chrome queue...' % len(self.MESSAGES))
+                    print(f'Failed to get {len(self.MESSAGES)} messages... clearing chrome queue...')
+                    print(f'Message queue before clear: {self.MESSAGES}')
                     self.MESSAGES = {}
                     retryCount = self.MAX_RETRIES
         
             if self.THREAD_DONE:
                 return
+
+    def get_messages_from_yt(self, liveChatExchanges):       
+        chatGetResponses = []
+        for chatExchange in liveChatExchanges:
+            # discard all existing chat messages
+            if chatExchange['response']:
+                chatExchange['request'] = self.YT_BCAST_SERVICE.liveChatMessages().list(liveChatId=chatExchange['liveChatId'],
+                                                                                        pageToken=chatExchange['response']['nextPageToken'],
+                                                                                        part="snippet,authorDetails")
+            chatExchange['response'] = chatExchange['request'].execute()
+            delayTillPoll = chatExchange['response']['pollingIntervalMillis']
+            time.sleep(delayTillPoll / 1000)
+            chatGetResponses.append(chatExchange['response'])
+
+        result = {'items': []}
+
+        for chatGetResponse in chatGetResponses:
+            for item in chatGetResponse['items']:
+                result['items'].append(item)
+
+        return result, delayTillPoll / 1000
 
     def check_for_match(self, messageText, author, publishedTime, outstandingMessages):
         for id, outstandingMessage in outstandingMessages:

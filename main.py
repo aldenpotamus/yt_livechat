@@ -10,8 +10,9 @@ def notifyFunction(message):
     print('NOTIFY: %s' % message['htmlText'])
 
 if __name__ == '__main__':
-    videoId = sys.argv[1]
-    print('Running for stream: %s' % videoId)
+    videoIds = sys.argv[1].split(',')
+
+    print(f'Running for streams: {videoIds}')
 
     del sys.argv[1]
 
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     bcastService = AuthManager.get_authenticated_service(CONFIG['TEST'], 
                                                          authConfig=CONFIG['AUTH_MANAGER'])
 
-    ytMonitor = YoutubeLivechat(videoId,
+    ytMonitor = YoutubeLivechat(videoIds,
                                 ytBcastService=bcastService,
                                 callbacks=[notifyFunction])
     
